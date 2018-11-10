@@ -6,8 +6,13 @@ as testing instructions are located at http://amzn.to/1LzFrj6
 For additional samples, visit the Alexa Skills Kit Getting Started guide at
 http://amzn.to/1LGWsLG
 """
-
 from __future__ import print_function
+
+import requests
+from bs4 import BeautifulSoup
+from datetime import datetime
+from datetime import timedelta
+from dateutil.parser import parse
 
 
 # --------------- Helpers that build all of the responses ----------------------
@@ -50,13 +55,11 @@ def get_welcome_response():
 
     session_attributes = {}
     card_title = "Welcome"
-    speech_output = "Welcome to the Alexa Skills Kit sample. " \
-                    "Please tell me your favorite color by saying, " \
-                    "my favorite color is red"
-    # If the user either does not reply to the welcome message or says something
+    speech_output = "Welcome to the Lutheran Church of Hope Dinner Menu " \
+                    "Please ask what's for dinner this week or what's for dinner this month " \
+        # If the user either does not reply to the welcome message or says something
     # that is not understood, they will be prompted again with this text.
-    reprompt_text = "Please tell me your favorite color by saying, " \
-                    "my favorite color is red."
+    reprompt_text = "Please ask what's for dinner this week or what's for dinner this month  "
     should_end_session = False
     return build_response(session_attributes, build_speechlet_response(
         card_title, speech_output, reprompt_text, should_end_session))
@@ -64,7 +67,7 @@ def get_welcome_response():
 
 def handle_session_end_request():
     card_title = "Session Ended"
-    speech_output = "Thank you for trying the Alexa Skills Kit sample. " \
+    speech_output = "I hope you enjoy your diner " \
                     "Have a nice day! "
     # Setting this to true ends the session and exits the skill.
     should_end_session = True
@@ -72,50 +75,45 @@ def handle_session_end_request():
         card_title, speech_output, None, should_end_session))
 
 
-def create_favorite_color_attributes(favorite_color):
-    return {"favoriteColor": favorite_color}
-
-
-def set_color_in_session(intent, session):
-    """ Sets the color in the session and prepares the speech to reply to the
-    user.
-    """
-
-    card_title = intent['name']
-    session_attributes = {}
-    should_end_session = False
-
-    if 'Color' in intent['slots']:
-        favorite_color = intent['slots']['Color']['value']
-        session_attributes = create_favorite_color_attributes(favorite_color)
-        speech_output = "I now know your favorite color is " + \
-                        favorite_color + \
-                        ". You can ask me your favorite color by saying, " \
-                        "what's my favorite color?"
-        reprompt_text = "You can ask me your favorite color by saying, " \
-                        "what's my favorite color?"
-    else:
-        speech_output = "I'm not sure what your favorite color is. " \
-                        "Please try again."
-        reprompt_text = "I'm not sure what your favorite color is. " \
-                        "You can tell me your favorite color by saying, " \
-                        "my favorite color is red."
-    return build_response(session_attributes, build_speechlet_response(
-        card_title, speech_output, reprompt_text, should_end_session))
-
-
-def get_color_from_session(intent, session):
+def get_current_menu(intent, session):
     session_attributes = {}
     reprompt_text = None
 
-    if session.get('attributes', {}) and "favoriteColor" in session.get('attributes', {}):
-        favorite_color = session['attributes']['favoriteColor']
-        speech_output = "Your favorite color is " + favorite_color + \
-                        ". Goodbye."
+    current_menu = next_menu()
+
+    if current_menu:
+        current_date = current_menu["date"]
+        speak_date = current_date.strftime("%B %d")
+        speech_output = "Dinner for " + speak_date + \
+            " will be " + current_menu["menu"]
         should_end_session = True
     else:
-        speech_output = "I'm not sure what your favorite color is. " \
-                        "You can say, my favorite color is red."
+        speech_output = "The menu for next week has not been posted yet."
+        should_end_session = False
+
+    # Setting reprompt_text to None signifies that we do not want to reprompt
+    # the user. If the user does not respond or says something that is not
+    # understood, the session will end.
+    return build_response(session_attributes, build_speechlet_response(
+        intent['name'], speech_output, reprompt_text, should_end_session))
+
+
+def get_current_month(intent, session):
+    session_attributes = {}
+    reprompt_text = None
+
+    current_menus = rest_of_month()
+
+    if current_menus:
+        speech_output = "Dinner for "
+        for current_menu in current_menus:
+            current_date = current_menu["date"]
+            speak_date = current_date.strftime("%B %d")
+            speech_output = speech_output + speak_date + \
+                " will be " + current_menu["menu"] + ", "
+            should_end_session = True
+    else:
+        speech_output = "The menu for next week has not been posted yet."
         should_end_session = False
 
     # Setting reprompt_text to None signifies that we do not want to reprompt
@@ -155,10 +153,10 @@ def on_intent(intent_request, session):
     intent_name = intent_request['intent']['name']
 
     # Dispatch to your skill's intent handlers
-    if intent_name == "MyColorIsIntent":
-        return set_color_in_session(intent, session)
-    elif intent_name == "WhatsMyColorIntent":
-        return get_color_from_session(intent, session)
+    if intent_name == "DinnerThisWeek":
+        return get_current_menu(intent, session)
+    elif intent_name == "DinnerThisMonth":
+        return get_current_month(intent, session)
     elif intent_name == "AMAZON.HelpIntent":
         return get_welcome_response()
     elif intent_name == "AMAZON.CancelIntent" or intent_name == "AMAZON.StopIntent":
@@ -205,3 +203,52 @@ def lambda_handler(event, context):
         return on_intent(event['request'], event['session'])
     elif event['request']['type'] == "SessionEndedRequest":
         return on_session_ended(event['request'], event['session'])
+
+
+page = requests.get(
+    'http://www.lutheranchurchofhope.org/west-des-moines/about-us/food-service/saturday-evening-menu/')
+
+now = datetime.now()
+
+soup = BeautifulSoup(page.text, 'html.parser')
+
+menu_div = soup.find(class_='first group_2of3')
+
+menu = menu_div.find_all('p')
+
+menu_objects = []
+
+for menu_row in menu[1:]:
+    if len(menu_row) > 0:
+        menu_objects.append(
+            {"date": parse(menu_row.contents[0].contents[0] + ' ' + str(now.year)), "menu": menu_row.contents[2]})
+        # print(menu_row.contents)
+
+
+def next_menu():
+    next_menu = {}
+
+    for menu_object in menu_objects:
+        if now.year == menu_object["date"].year and now.month == menu_object["date"].month and now.day == menu_object["date"].day:
+            next_menu = menu_object
+            break
+        elif now < menu_object["date"]:
+            next_menu = menu_object
+            break
+
+    return next_menu
+
+
+def rest_of_month():
+    next_menus = []
+
+    for menu_object in menu_objects:
+        if now.year == menu_object["date"].year and now.month == menu_object["date"].month and now.day == menu_object["date"].day:
+            next_menus.append(menu_object)
+        elif now < menu_object["date"]:
+            next_menus.append(menu_object)
+
+    return next_menus
+
+
+print(get_current_month('', ''))
