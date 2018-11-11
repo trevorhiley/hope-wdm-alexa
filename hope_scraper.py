@@ -33,7 +33,7 @@ def get_saturday_menu():
     return menu_objects
 
 
-def next_saturday_menu():
+def saturday_night_menu_next():
 
     menu_objects = get_saturday_menu()
     next_menu = {}

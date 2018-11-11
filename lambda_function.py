@@ -9,6 +9,7 @@ http://amzn.to/1LGWsLG
 from __future__ import print_function
 
 import hope_scraper
+import hope_text_builder
 from datetime import datetime
 
 
@@ -72,55 +73,20 @@ def handle_session_end_request():
         card_title, speech_output, None, should_end_session))
 
 
-def get_current_menu(intent, session):
+def build_intent_response(intent, session, text_func):
     session_attributes = {}
     reprompt_text = None
 
-    current_menu = hope_scraper.next_saturday_menu()
-
-    if current_menu:
-        current_date = current_menu["date"]
-        speak_date = current_date.strftime("%B %d")
-        speech_output = "Dinner for " + speak_date + \
-            " will be " + current_menu["menu"]
-        should_end_session = True
-    else:
-        speech_output = "The menu for next week has not been posted yet."
-        should_end_session = False
+    speech_output, should_end_session = text_func()
 
     # Setting reprompt_text to None signifies that we do not want to reprompt
     # the user. If the user does not respond or says something that is not
     # understood, the session will end.
     return build_response(session_attributes, build_speechlet_response(
         intent['name'], speech_output, reprompt_text, should_end_session))
-
-
-def get_current_month(intent, session):
-    session_attributes = {}
-    reprompt_text = None
-
-    current_menus = hope_scraper.saturday_night_menu_rest_of_month()
-
-    if current_menus:
-        speech_output = "Dinner for "
-        for current_menu in current_menus:
-            current_date = current_menu["date"]
-            speak_date = current_date.strftime("%B %d")
-            speech_output = speech_output + speak_date + \
-                " will be " + current_menu["menu"] + ", "
-            should_end_session = True
-    else:
-        speech_output = "The menu for next week has not been posted yet."
-        should_end_session = False
-
-    # Setting reprompt_text to None signifies that we do not want to reprompt
-    # the user. If the user does not respond or says something that is not
-    # understood, the session will end.
-    return build_response(session_attributes, build_speechlet_response(
-        intent['name'], speech_output, reprompt_text, should_end_session))
-
 
 # --------------- Events ------------------
+
 
 def on_session_started(session_started_request, session):
     """ Called when the session starts """
@@ -151,9 +117,9 @@ def on_intent(intent_request, session):
 
     # Dispatch to your skill's intent handlers
     if intent_name == "DinnerThisWeek":
-        return get_current_menu(intent, session)
+        return build_intent_response(intent, session, hope_text_builder.saturday_night_menu_next_text)
     elif intent_name == "DinnerThisMonth":
-        return get_current_month(intent, session)
+        return build_intent_response(intent, session, hope_text_builder.saturday_night_menu_rest_of_month_text)
     elif intent_name == "AMAZON.HelpIntent":
         return get_welcome_response()
     elif intent_name == "AMAZON.CancelIntent" or intent_name == "AMAZON.StopIntent":
