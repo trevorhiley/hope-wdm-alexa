@@ -76,7 +76,7 @@ def get_current_menu(intent, session):
     session_attributes = {}
     reprompt_text = None
 
-    current_menu = hope_scraper.next_menu()
+    current_menu = hope_scraper.next_saturday_menu()
 
     if current_menu:
         current_date = current_menu["date"]
@@ -99,7 +99,7 @@ def get_current_month(intent, session):
     session_attributes = {}
     reprompt_text = None
 
-    current_menus = hope_scraper.rest_of_month()
+    current_menus = hope_scraper.saturday_night_menu_rest_of_month()
 
     if current_menus:
         speech_output = "Dinner for "
