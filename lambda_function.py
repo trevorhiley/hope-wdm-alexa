@@ -13,6 +13,7 @@ from bs4 import BeautifulSoup
 from datetime import datetime
 from datetime import timedelta
 from dateutil.parser import parse
+import pytz
 
 
 # --------------- Helpers that build all of the responses ----------------------
@@ -208,7 +209,8 @@ def lambda_handler(event, context):
 page = requests.get(
     'http://www.lutheranchurchofhope.org/west-des-moines/about-us/food-service/saturday-evening-menu/')
 
-now = datetime.now()
+tz = pytz.timezone('America/Chicago')
+now = datetime.now(tz)
 
 soup = BeautifulSoup(page.text, 'html.parser')
 
@@ -220,8 +222,12 @@ menu_objects = []
 
 for menu_row in menu[1:]:
     if len(menu_row) > 0:
+        menu_date = parse(
+            menu_row.contents[0].contents[0] + ' ' + str(now.year))
+        menu_date = menu_date.replace(tzinfo=tz)
+        menu_date.replace(tzinfo=tz)
         menu_objects.append(
-            {"date": parse(menu_row.contents[0].contents[0] + ' ' + str(now.year)), "menu": menu_row.contents[2]})
+            {"date": menu_date, "menu": menu_row.contents[2]})
         # print(menu_row.contents)
 
 
