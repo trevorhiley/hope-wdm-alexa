@@ -8,12 +8,8 @@ http://amzn.to/1LGWsLG
 """
 from __future__ import print_function
 
-import requests
-from bs4 import BeautifulSoup
+import hope_scraper
 from datetime import datetime
-from datetime import timedelta
-from dateutil.parser import parse
-import pytz
 
 
 # --------------- Helpers that build all of the responses ----------------------
@@ -56,11 +52,11 @@ def get_welcome_response():
 
     session_attributes = {}
     card_title = "Welcome"
-    speech_output = "Welcome to the Lutheran Church of Hope Dinner Menu " \
-                    "Please ask what's for dinner this week or what's for dinner this month " \
-        # If the user either does not reply to the welcome message or says something
+    speech_output = "Welcome to the Lutheran Church of Hope alexa skill " \
+                    "Please ask me what classes are happening this week or what's for dinner on saturday this week. "
+    # If the user either does not reply to the welcome message or says something
     # that is not understood, they will be prompted again with this text.
-    reprompt_text = "Please ask what's for dinner this week or what's for dinner this month  "
+    reprompt_text = "Please ask me what classes are happening this week or what's for dinner on saturday this week. "
     should_end_session = False
     return build_response(session_attributes, build_speechlet_response(
         card_title, speech_output, reprompt_text, should_end_session))
@@ -80,7 +76,7 @@ def get_current_menu(intent, session):
     session_attributes = {}
     reprompt_text = None
 
-    current_menu = next_menu()
+    current_menu = hope_scraper.next_menu()
 
     if current_menu:
         current_date = current_menu["date"]
@@ -103,7 +99,7 @@ def get_current_month(intent, session):
     session_attributes = {}
     reprompt_text = None
 
-    current_menus = rest_of_month()
+    current_menus = hope_scraper.rest_of_month()
 
     if current_menus:
         speech_output = "Dinner for "
@@ -204,54 +200,3 @@ def lambda_handler(event, context):
         return on_intent(event['request'], event['session'])
     elif event['request']['type'] == "SessionEndedRequest":
         return on_session_ended(event['request'], event['session'])
-
-
-page = requests.get(
-    'http://www.lutheranchurchofhope.org/west-des-moines/about-us/food-service/saturday-evening-menu/')
-
-tz = pytz.timezone('America/Chicago')
-now = datetime.now(tz)
-
-soup = BeautifulSoup(page.text, 'html.parser')
-
-menu_div = soup.find(class_='first group_2of3')
-
-menu = menu_div.find_all('p')
-
-menu_objects = []
-
-for menu_row in menu[1:]:
-    if len(menu_row) > 0:
-        menu_date = parse(
-            menu_row.contents[0].contents[0] + ' ' + str(now.year))
-        menu_date = menu_date.replace(tzinfo=tz)
-        menu_date.replace(tzinfo=tz)
-        menu_objects.append(
-            {"date": menu_date, "menu": menu_row.contents[2]})
-        # print(menu_row.contents)
-
-
-def next_menu():
-    next_menu = {}
-
-    for menu_object in menu_objects:
-        if now.year == menu_object["date"].year and now.month == menu_object["date"].month and now.day == menu_object["date"].day:
-            next_menu = menu_object
-            break
-        elif now < menu_object["date"]:
-            next_menu = menu_object
-            break
-
-    return next_menu
-
-
-def rest_of_month():
-    next_menus = []
-
-    for menu_object in menu_objects:
-        if now.year == menu_object["date"].year and now.month == menu_object["date"].month and now.day == menu_object["date"].day:
-            next_menus.append(menu_object)
-        elif now < menu_object["date"]:
-            next_menus.append(menu_object)
-
-    return next_menus
