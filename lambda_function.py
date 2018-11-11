@@ -116,9 +116,9 @@ def on_intent(intent_request, session):
     intent_name = intent_request['intent']['name']
 
     # Dispatch to your skill's intent handlers
-    if intent_name == "DinnerThisWeek":
+    if intent_name == "SaturdayDinnerThisWeek":
         return build_intent_response(intent, session, hope_text_builder.saturday_night_menu_next_text)
-    elif intent_name == "DinnerThisMonth":
+    elif intent_name == "SaturdayDinnerThisMonth":
         return build_intent_response(intent, session, hope_text_builder.saturday_night_menu_rest_of_month_text)
     elif intent_name == "AMAZON.HelpIntent":
         return get_welcome_response()
