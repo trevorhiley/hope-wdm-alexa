@@ -249,6 +249,3 @@ def rest_of_month():
             next_menus.append(menu_object)
 
     return next_menus
-
-
-print(get_current_month('', ''))
