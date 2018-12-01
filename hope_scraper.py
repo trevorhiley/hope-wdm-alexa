@@ -10,7 +10,7 @@ now = datetime.now(tz)
 
 def get_saturday_menu():
 
-    menu_objects = []
+
     page = requests.get(
         'http://www.lutheranchurchofhope.org/west-des-moines/about-us/food-service/saturday-evening-menu/')
 
@@ -20,15 +20,9 @@ def get_saturday_menu():
 
     menu = menu_div.find_all('p')
 
-    for menu_row in menu[1:]:
-        if len(menu_row) > 0:
-            menu_date = parse(
-                menu_row.contents[0].contents[0] + ' ' + str(now.year))
-            menu_date = menu_date.replace(tzinfo=tz)
-            menu_date.replace(tzinfo=tz)
-            menu_objects.append(
-                {"date": menu_date, "menu": menu_row.contents[2]})
-            # print(menu_row.contents)
+    menu_objects = parse_menu_div(menu)
+
+    print(menu_objects)
 
     return menu_objects
 
@@ -60,3 +54,28 @@ def saturday_night_menu_rest_of_month():
             next_menus.append(menu_object)
 
     return next_menus
+
+def parse_menu_div(menu):
+    menu_objects = []
+    for menu_row in menu[1:]:
+        if len(menu_row) > 0:
+            menu_date = parse_menu_date(menu_row)
+            menu_objects.append(
+                {"date": menu_date, "menu": menu_row.contents[2]})
+
+    return menu_objects
+
+def parse_menu_date(menu_row):
+    date_content = ""
+    if "&" in menu_row.contents[0].contents[0]:
+        and_position = menu_row.contents[0].contents[0].index('&')
+        date_content = menu_row.contents[0].contents[0][0:and_position]
+    else:
+        date_content = menu_row.contents[0].contents[0]
+    menu_date = parse(
+                date_content + ' ' + str(now.year))
+    menu_date = menu_date.replace(tzinfo=tz)
+    menu_date.replace(tzinfo=tz)
+    return menu_date
+
+get_saturday_menu()
