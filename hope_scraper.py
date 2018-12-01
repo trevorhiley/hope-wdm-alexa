@@ -59,23 +59,28 @@ def parse_menu_div(menu):
     menu_objects = []
     for menu_row in menu[1:]:
         if len(menu_row) > 0:
-            menu_date = parse_menu_date(menu_row)
-            menu_objects.append(
-                {"date": menu_date, "menu": menu_row.contents[2]})
+            menu_dates = parse_menu_date(menu_row)
+            for menu_date in menu_dates:
+                menu_objects.append(
+                    {"date": menu_date, "menu": menu_row.contents[2]})
 
     return menu_objects
 
 def parse_menu_date(menu_row):
-    date_content = ""
+    date_contents = []
+    menu_dates = []
     if "&" in menu_row.contents[0].contents[0]:
         and_position = menu_row.contents[0].contents[0].index('&')
-        date_content = menu_row.contents[0].contents[0][0:and_position]
+        date_contents.append(menu_row.contents[0].contents[0][0:and_position])
+        month = menu_row.contents[0].contents[0][0:menu_row.contents[0].contents[0].index('.') + 1]
+        second_date = menu_row.contents[0].contents[0][and_position + 2:]
+        date_contents.append(month + second_date)
     else:
-        date_content = menu_row.contents[0].contents[0]
-    menu_date = parse(
-                date_content + ' ' + str(now.year))
-    menu_date = menu_date.replace(tzinfo=tz)
-    menu_date.replace(tzinfo=tz)
-    return menu_date
-
-get_saturday_menu()
+         date_contents.append(menu_row.contents[0].contents[0])
+    for date_content in date_contents:
+        menu_date = parse(
+                    date_content + ' ' + str(now.year))
+        menu_date = menu_date.replace(tzinfo=tz)
+        menu_date.replace(tzinfo=tz)
+        menu_dates.append(menu_date)
+    return menu_dates
